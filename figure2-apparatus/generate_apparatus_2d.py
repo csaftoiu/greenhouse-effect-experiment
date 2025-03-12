@@ -288,6 +288,54 @@ def draw_apparatus(ax, with_glasses=True):
                 
             glass_panes.append(glass)
             glass_positions.append(y_position)
+        else:
+            # Draw just the cork sides without glass
+            total_side_width = (CORK_DIAMETER - GLASS_DIAMETER) / 2
+            # Calculate dimensions for the cork segments on the sides
+            if i == 0 or i == 2:  # Left side cork for panes 1 and 3
+                # First layer on left side
+                left_cork1 = patches.Rectangle(
+                    (-CORK_DIAMETER/2, y_position),
+                    total_side_width, LAYER_THICKNESS,
+                    facecolor=CORK_COLOR,
+                    edgecolor='black',
+                    linewidth=0.5
+                )
+                ax.add_patch(left_cork1)
+                
+                # Second layer on left side
+                left_cork2 = patches.Rectangle(
+                    (-CORK_DIAMETER/2, y_position + LAYER_THICKNESS),
+                    total_side_width, LAYER_THICKNESS,
+                    facecolor=CORK_COLOR,
+                    edgecolor='black',
+                    linewidth=0.5
+                )
+                ax.add_patch(left_cork2)
+            else:  # Right side cork for panes 2 and 4
+                # First layer on right side
+                right_cork1 = patches.Rectangle(
+                    (GLASS_DIAMETER/2, y_position),
+                    total_side_width, LAYER_THICKNESS,
+                    facecolor=CORK_COLOR,
+                    edgecolor='black',
+                    linewidth=0.5
+                )
+                ax.add_patch(right_cork1)
+                
+                # Second layer on right side
+                right_cork2 = patches.Rectangle(
+                    (GLASS_DIAMETER/2, y_position + LAYER_THICKNESS),
+                    total_side_width, LAYER_THICKNESS,
+                    facecolor=CORK_COLOR,
+                    edgecolor='black',
+                    linewidth=0.5
+                )
+                ax.add_patch(right_cork2)
+            
+            # Still track the positions for thermocouples
+            glass_positions.append(y_position)
+        
         y_position += GLASS_THICKNESS
         
         # Cork separator between glass panes (only one layer)
@@ -299,8 +347,9 @@ def draw_apparatus(ax, with_glasses=True):
         draw_cork_layer(ax, y_position, draw_hole=True)
         y_position += LAYER_THICKNESS
     
-    # Draw thermocouples if glass panes are present
-    if with_glasses:
+    # Draw thermocouples (regardless of glass presence)
+    # Only check if glass_positions is available, which happens in both cases now
+    if glass_positions:
         # Red thermocouple - top of black bottom (centered)
         red_tc = draw_thermocouple(
             ax,
@@ -381,13 +430,13 @@ def draw_apparatus(ax, with_glasses=True):
                     f'Pane {i+1}', ha='left', va='center')
     
     # Add legend for thermocouples
-    if with_glasses:
+    if glass_positions:  # Same condition as for drawing thermocouples
         legend_elements = [
             Line2D([0], [0], marker='o', color='w', markerfacecolor=RED_TC_COLOR, markersize=10, label='TC Black Bottom'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=BLUE_TC_COLOR, markersize=10, label='TC Bottom Pane Topside'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=GREEN_TC_COLOR, markersize=10, label='TC Bottom Pane Underside'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor=BROWN_TC_COLOR, markersize=10, label='TC Top Pane Topside'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=PURPLE_TC_COLOR, markersize=10, label='TC Apparatus Underside'),
-            Line2D([0], [0], marker='o', color='w', markerfacecolor=BROWN_TC_COLOR, markersize=10, label='TC Top Pane Topside')
         ]
         ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.1, 1.2))
 
