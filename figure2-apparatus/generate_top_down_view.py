@@ -12,7 +12,7 @@ import os
 from generate_apparatus_2d import (
     CORK_DIAMETER, CORK_HOLE_DIAMETER, GLASS_DIAMETER, 
     LAYER_THICKNESS, CORK_COLOR, BLACK_BOTTOM_COLOR, GLASS_COLOR, GLASS_ALPHA,
-    RED_TC_COLOR, BLUE_TC_COLOR, GREEN_TC_COLOR, PURPLE_TC_COLOR,
+    RED_TC_COLOR, BLUE_TC_COLOR, GREEN_TC_COLOR, PURPLE_TC_COLOR, BROWN_TC_COLOR,
     THERMOCOUPLE_THICKNESS, DPI, MARGIN
 )
 
@@ -173,6 +173,18 @@ def draw_top_down_view(ax, with_glass=True):
     )
     ax.add_patch(purple_tc)
     
+    # Brown thermocouple - top of top pane (opposite to blue TC)
+    brown_tc = patches.Circle(
+        (-blue_x, blue_y),  # Opposite side from blue TC
+        radius=THERMOCOUPLE_THICKNESS * 1.2,
+        facecolor=BROWN_TC_COLOR,
+        edgecolor='black',
+        linewidth=0.8,
+        zorder=tc_zorder,
+        label="Brown TC"
+    )
+    ax.add_patch(brown_tc)
+    
     # Add dimension lines and labels with higher zorder to stand out
     dim_zorder = 15
     
@@ -223,6 +235,9 @@ def draw_top_down_view(ax, with_glass=True):
         Line2D([0], [0], marker='o', color='w', markerfacecolor=GREEN_TC_COLOR, 
                markersize=10, markeredgecolor='black', markeredgewidth=0.5, 
                label='TC Bottom Pane Underside'),
+        Line2D([0], [0], marker='o', color='w', markerfacecolor=BROWN_TC_COLOR, 
+               markersize=10, markeredgecolor='black', markeredgewidth=0.5, 
+               label='TC Top Pane Topside'),
         Line2D([0], [0], marker='o', color='w', markerfacecolor=PURPLE_TC_COLOR, 
                markersize=10, markeredgecolor='black', markeredgewidth=0.5, 
                label='TC Apparatus Underside (not visible)')

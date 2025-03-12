@@ -33,6 +33,7 @@ RED_TC_COLOR = 'red'  # Top of black bottom
 BLUE_TC_COLOR = 'blue'  # Top of bottom pane
 GREEN_TC_COLOR = 'green'  # Under bottom pane
 PURPLE_TC_COLOR = 'purple'  # Underside of apparatus
+BROWN_TC_COLOR = '#8c564b'  # Top pane topside (matches figure3a)
 
 # Figure settings
 DPI = 300
@@ -335,6 +336,15 @@ def draw_apparatus(ax, with_glasses=True):
             PURPLE_TC_COLOR,
             label="Purple TC"
         )
+        
+        # Brown thermocouple - top of top pane (4th glass pane)
+        brown_tc = draw_thermocouple(
+            ax,
+            -GLASS_DIAMETER/2 + THERMOCOUPLE_THICKNESS,  # Opposite of blue TC
+            glass_positions[3] + GLASS_THICKNESS,
+            BROWN_TC_COLOR,
+            label="Brown TC"
+        )
     
     # Add dimension lines and labels
     # Overall height
@@ -376,7 +386,8 @@ def draw_apparatus(ax, with_glasses=True):
             Line2D([0], [0], marker='o', color='w', markerfacecolor=RED_TC_COLOR, markersize=10, label='TC Black Bottom'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=BLUE_TC_COLOR, markersize=10, label='TC Bottom Pane Topside'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=GREEN_TC_COLOR, markersize=10, label='TC Bottom Pane Underside'),
-            Line2D([0], [0], marker='o', color='w', markerfacecolor=PURPLE_TC_COLOR, markersize=10, label='TC Apparatus Underside')
+            Line2D([0], [0], marker='o', color='w', markerfacecolor=PURPLE_TC_COLOR, markersize=10, label='TC Apparatus Underside'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor=BROWN_TC_COLOR, markersize=10, label='TC Top Pane Topside')
         ]
         ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.1, 1.2))
 
