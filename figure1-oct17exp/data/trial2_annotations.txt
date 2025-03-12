@@ -1,0 +1,5 @@
+start,end,configuration
+00:00,14:08,CCCC
+14:08,15:28,BBBB
+15:34,16:19,CCCC
+16:25,17:50,BBBB

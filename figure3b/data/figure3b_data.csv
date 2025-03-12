@@ -1,0 +1,6 @@
+Configuration,Peak_Temperature,Peak_Temperature_Error,Insolation_Bottom,Insolation_Bottom_Error,Insolation_Top,Insolation_Top_Error
+----,64.5,0.1,881,10.7,943,2.5
+CCCC,69.4,0.1,755,18.5,948,1.5
+BCCC,74.7,0.1,716,15.6,912,3.5
+BBCC,77.1,0.1,726,15.5,929,2.0
+BBBB,79.2,0.1,733,16.1,924,6.0
