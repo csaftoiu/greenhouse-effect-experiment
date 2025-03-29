@@ -60,23 +60,25 @@ def create_cooling_rate_comparison():
     # Define time periods to extract (as specified in the requirements)
     time_periods = {
         'NOPANE': {
-            'start': '2025-03-28 17:00:57',
+            'start': '2025-03-28 17:02:57',
             'end': '2025-03-28 17:34:16',
         },
         'CAF2': {
-            'start': '2025-03-28 18:25:27',
+            'start': '2025-03-28 18:27:27',
             'end': '2025-03-28 19:29:00',
         },
         'BORO': {
-            'start': '2025-03-28 20:03:20',
+            'start': '2025-03-28 20:05:20',
             'end': '2025-03-28 20:59:34',
         }
     }
+    start_offset = 120
 
     # Filter data for each time period
+    from datetime import timedelta
     period_data = {}
     for period_name, time_range in time_periods.items():
-        start_time = pd.to_datetime(time_range['start'])
+        start_time = pd.to_datetime(time_range['start']) - timedelta(seconds=start_offset)
         end_time = pd.to_datetime(time_range['end'])
         
         # Filter data within the time range
@@ -91,27 +93,13 @@ def create_cooling_rate_comparison():
         else:
             print(f"No data found for {period_name} period!")
     
-    # Align all periods at the point where black bottom is 44°C
-    target_temp = TARGET_TEMP
-    top_pane_col = temp_columns[1]  # "top pane" column
-
+    # Align all periods to start offset point
     # Find reference points and adjust time values
     for period_name, df in period_data.items():
-        # Convert temperature column to numeric to ensure proper comparison
-        df[top_pane_col] = pd.to_numeric(df[top_pane_col], errors='coerce')
-
-        # Find the index where black bottom temp is closest to 44°C
-        df['temp_diff'] = abs(df[top_pane_col] - target_temp)
-        ref_idx = df['temp_diff'].idxmin()
-        ref_seconds = df.loc[ref_idx, 'seconds']
-
-        # Calculate seconds relative to the reference point
-        df['seconds'] = df['seconds'] - ref_seconds
+        df['seconds'] = df['seconds'] - start_offset
 
         # Update the DataFrame in the dictionary
         period_data[period_name] = df
-
-        print(f"For {period_name}, found top pane = {df.loc[ref_idx, top_pane_col]:.1f}°C at reference point")
 
     # Define color base for each temperature column
     base_colors = {
@@ -200,7 +188,7 @@ def create_cooling_rate_comparison():
         
         # Only add x-label to bottom row subplots
         if j >= 2:
-            ax.set_xlabel('Time relative to %.1f°C top pane point (MM:SS)' % target_temp, fontsize=16, labelpad=10)
+            ax.set_xlabel('Time relative to room temp sensor starting to drop (MM:SS)', fontsize=16, labelpad=10)
         
         # Only add y-label to leftmost subplots
         if j % 2 == 0:
@@ -236,7 +224,7 @@ def create_cooling_rate_comparison():
     
     return fig
 
-def create_shorter_version(original_fig, mins):
+def create_shorter_version(original_fig, mins, xmin=23):
     """
     Create a version of the figure that shows only -1 to 10 minutes
     """
@@ -278,7 +266,7 @@ def create_shorter_version(original_fig, mins):
         ax_new.grid(True, which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
         
         # Set y-axis range
-        ax_new.set_ylim(23, 46)
+        ax_new.set_ylim(xmin, 46)
         
         # Set x-axis limits to show range from -60 to 600 seconds (-1 to 10 minutes)
         ax_new.set_xlim(-60, mins*60)
@@ -295,7 +283,7 @@ def create_shorter_version(original_fig, mins):
         
         # Add x-label to bottom row subplots
         if i >= 2:
-            ax_new.set_xlabel('Time relative to %.1f°C top pane point (MM:SS)' % TARGET_TEMP, fontsize=16, labelpad=10)
+            ax_new.set_xlabel('Time relative to room temp sensor starting to drop (MM:SS)', fontsize=16, labelpad=10)
         
         # Add y-label to leftmost subplots
         if i % 2 == 0:
@@ -345,7 +333,7 @@ if __name__ == "__main__":
     fig_10m = create_shorter_version(fig, mins=10)
 
     print("Creating 2-minute version of the figure...")
-    fig_2m = create_shorter_version(fig, mins=2)
+    fig_2m = create_shorter_version(fig, mins=2, xmin=35)
 
     # show
     plt.show()
