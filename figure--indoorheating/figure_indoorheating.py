@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import os
 
+TARGET_TEMP = 44.0
+
 def create_cooling_rate_comparison():
     """
     Creates a publication-quality plot comparing cooling rates for different
@@ -58,16 +60,16 @@ def create_cooling_rate_comparison():
     # Define time periods to extract (as specified in the requirements)
     time_periods = {
         'NOPANE': {
-            'start': '2025-03-28 17:02:57',
-            'end': '2025-03-28 17:34:16'
+            'start': '2025-03-28 17:00:57',
+            'end': '2025-03-28 17:34:16',
         },
         'CAF2': {
-            'start': '2025-03-28 18:27:27',
-            'end': '2025-03-28 19:29:00'
+            'start': '2025-03-28 18:25:27',
+            'end': '2025-03-28 19:29:00',
         },
         'BORO': {
-            'start': '2025-03-28 20:05:20',
-            'end': '2025-03-28 20:59:34'
+            'start': '2025-03-28 20:03:20',
+            'end': '2025-03-28 20:59:34',
         }
     }
 
@@ -88,6 +90,28 @@ def create_cooling_rate_comparison():
             print(f"Extracted {len(period_df)} rows for {period_name} period")
         else:
             print(f"No data found for {period_name} period!")
+    
+    # Align all periods at the point where black bottom is 44°C
+    target_temp = TARGET_TEMP
+    top_pane_col = temp_columns[1]  # "top pane" column
+
+    # Find reference points and adjust time values
+    for period_name, df in period_data.items():
+        # Convert temperature column to numeric to ensure proper comparison
+        df[top_pane_col] = pd.to_numeric(df[top_pane_col], errors='coerce')
+
+        # Find the index where black bottom temp is closest to 44°C
+        df['temp_diff'] = abs(df[top_pane_col] - target_temp)
+        ref_idx = df['temp_diff'].idxmin()
+        ref_seconds = df.loc[ref_idx, 'seconds']
+
+        # Calculate seconds relative to the reference point
+        df['seconds'] = df['seconds'] - ref_seconds
+
+        # Update the DataFrame in the dictionary
+        period_data[period_name] = df
+
+        print(f"For {period_name}, found top pane = {df.loc[ref_idx, top_pane_col]:.1f}°C at reference point")
 
     # Define color base for each temperature column
     base_colors = {
@@ -116,8 +140,9 @@ def create_cooling_rate_comparison():
         # Return the original color regardless of darkness level
         return base_color
     
-    # Maximum time to display (60 minutes = 3600 seconds)
-    max_seconds = 3600
+    # Time range to display (from -1 minute to +60 minutes relative to reference point)
+    min_seconds = -60  # 1 minute before reference point
+    max_seconds = 3600  # 60 minutes after reference point
     
     # Create the figure with 2x2 subplots
     fig, axs = plt.subplots(2, 2, figsize=(16, 12), sharex=True, sharey=True)
@@ -133,8 +158,8 @@ def create_cooling_rate_comparison():
         
         # Loop through each time period and plot on this subplot
         for i, (period_name, df) in enumerate(period_data.items()):
-            # Only plot data up to max_seconds
-            df_filtered = df[df['seconds'] <= max_seconds]
+            # Filter data to the time range we want to display
+            df_filtered = df[(df['seconds'] >= min_seconds) & (df['seconds'] <= max_seconds)]
             
             # Get color for this sensor
             color = base_colors[col]
@@ -160,8 +185,8 @@ def create_cooling_rate_comparison():
         # Set y-axis range for each subplot
         ax.set_ylim(23, 46)
         
-        # Set x-axis limits
-        ax.set_xlim(0, max_seconds)
+        # Set x-axis limits to show range from min_seconds to max_seconds
+        ax.set_xlim(min_seconds, max_seconds)
         
         # Add legend to each subplot
         ax.legend(
@@ -175,7 +200,7 @@ def create_cooling_rate_comparison():
         
         # Only add x-label to bottom row subplots
         if j >= 2:
-            ax.set_xlabel('Time after start (MM:SS)', fontsize=16, labelpad=10)
+            ax.set_xlabel('Time relative to %.1f°C top pane point (MM:SS)' % target_temp, fontsize=16, labelpad=10)
         
         # Only add y-label to leftmost subplots
         if j % 2 == 0:
@@ -184,9 +209,16 @@ def create_cooling_rate_comparison():
         # Configure tick formatting
         # Convert x-axis to minutes:seconds format for better readability
         def format_time(seconds, _):
-            minutes = int(seconds // 60)
-            secs = int(seconds % 60)
-            return f"{minutes:02d}:{secs:02d}"
+            # Add support for negative time values
+            is_negative = seconds < 0
+            seconds_abs = abs(seconds)
+            minutes = int(seconds_abs // 60)
+            secs = int(seconds_abs % 60)
+            
+            if is_negative:
+                return f"-{minutes:02d}:{secs:02d}"
+            else:
+                return f"{minutes:02d}:{secs:02d}"
         
         ax.xaxis.set_major_formatter(plt.FuncFormatter(format_time))
         ax.xaxis.set_major_locator(mticker.MultipleLocator(600))  # Every 10 minutes
@@ -204,17 +236,127 @@ def create_cooling_rate_comparison():
     
     return fig
 
+def create_shorter_version(original_fig, mins):
+    """
+    Create a version of the figure that shows only -1 to 10 minutes
+    """
+    # Create a copy of the original figure
+    fig = plt.figure(figsize=(16, 12))
+    
+    # Copy the subplots from the original figure
+    for i, ax_orig in enumerate(original_fig.axes):
+        # Create a new subplot
+        ax_new = fig.add_subplot(2, 2, i+1)
+        
+        # Copy the lines data from original axis to new axis
+        for line in ax_orig.lines:
+            # Get the data
+            x_data = line.get_xdata()
+            y_data = line.get_ydata()
+            
+            # Filter data to only include -1 to 10 minutes (-60 to 600 seconds)
+            mask = (x_data >= -60) & (x_data <= mins*60)
+            x_filtered = x_data[mask]
+            y_filtered = y_data[mask]
+            
+            # Plot the filtered data on the new axis
+            ax_new.plot(
+                x_filtered, 
+                y_filtered,
+                label=line.get_label(),
+                color=line.get_color(),
+                linestyle=line.get_linestyle(),
+                linewidth=line.get_linewidth(),
+                zorder=line.get_zorder()
+            )
+        
+        # Copy the title
+        ax_new.set_title(ax_orig.get_title(), fontsize=16, weight='bold')
+        
+        # Copy the grid
+        ax_new.grid(True, which='major', linestyle='-', alpha=0.3, linewidth=0.8)
+        ax_new.grid(True, which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
+        
+        # Set y-axis range
+        ax_new.set_ylim(23, 46)
+        
+        # Set x-axis limits to show range from -60 to 600 seconds (-1 to 10 minutes)
+        ax_new.set_xlim(-60, mins*60)
+        
+        # Add legend
+        ax_new.legend(
+            loc='best',
+            frameon=True,
+            fancybox=True,
+            shadow=True,
+            borderpad=1,
+            labelspacing=0.8
+        )
+        
+        # Add x-label to bottom row subplots
+        if i >= 2:
+            ax_new.set_xlabel('Time relative to %.1f°C top pane point (MM:SS)' % TARGET_TEMP, fontsize=16, labelpad=10)
+        
+        # Add y-label to leftmost subplots
+        if i % 2 == 0:
+            ax_new.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
+        
+        # Configure tick formatting
+        def format_time(seconds, _):
+            # Add support for negative time values
+            is_negative = seconds < 0
+            seconds_abs = abs(seconds)
+            minutes = int(seconds_abs // 60)
+            secs = int(seconds_abs % 60)
+            
+            if is_negative:
+                return f"-{minutes:02d}:{secs:02d}"
+            else:
+                return f"{minutes:02d}:{secs:02d}"
+        
+        ax_new.xaxis.set_major_formatter(plt.FuncFormatter(format_time))
+        ax_new.xaxis.set_major_locator(mticker.MultipleLocator(120))  # Every 2 minutes
+        ax_new.xaxis.set_minor_locator(mticker.MultipleLocator(30))   # Every 30 seconds
+        
+        # Set y-axis ticks
+        ax_new.yaxis.set_major_locator(mticker.MultipleLocator(5))    # Every 5°C
+        ax_new.yaxis.set_minor_locator(mticker.MultipleLocator(1))    # Every 1°C
+    
+    # Add a global title
+    fig.suptitle('Cooling rate comparison (first %d minutes)' % mins, fontsize=20, weight='bold', y=0.98)
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    return fig
+
 if __name__ == "__main__":
-    # Create the publication-quality plot
+    # # Create the publication-quality plot
     fig = create_cooling_rate_comparison()
-    
+    # plt.show()
+    #
+    # # Save the figure with high resolution for publication
+    # print("Saving high-resolution figure for publication...")
+    #
+    # # Save to the same directory as the script
+
+    # Create and save the 10-minute version
+    print("Creating 10-minute version of the figure...")
+    fig_10m = create_shorter_version(fig, mins=10)
+
+    print("Creating 2-minute version of the figure...")
+    fig_2m = create_shorter_version(fig, mins=2)
+
+    # show
     plt.show()
-    
-    # Save the figure with high resolution for publication
-    print("Saving high-resolution figure for publication...")
-    
-    # Save to the same directory as the script
+
+    # Save the figures
     save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figure_indoorheating.png')
-    
     fig.savefig(save_path, dpi=600, bbox_inches='tight')
     print(f"Done! Figure saved as {save_path}")
+    save_path_10m = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figure_indoorheating_10m.png')
+    fig_10m.savefig(save_path_10m, dpi=600, bbox_inches='tight')
+    print(f"Done! 10-minute version saved as {save_path_10m}")
+    save_path_2m = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figure_indoorheating_2m.png')
+    fig_2m.savefig(save_path_2m, dpi=600, bbox_inches='tight')
+    print(f"Done! 10-minute version saved as {save_path_10m}")
