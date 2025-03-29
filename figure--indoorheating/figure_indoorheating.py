@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import os
 
-TARGET_TEMP = 44.0
+TARGET_TEMP = 44.3  # Target temperature to use as reference point for alignment
 
 def create_cooling_rate_comparison():
     """
@@ -41,14 +41,26 @@ def create_cooling_rate_comparison():
     # Load data
     print("Loading data...")
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    
+    # Load original data
     csv_fn = os.path.join(data_dir, 'indoor_heating_data.csv')
     data = pd.read_csv(csv_fn, skiprows=3, encoding='latin1')
-    print(f"Loaded {len(data)} rows of data")
+    print(f"Loaded {len(data)} rows of data from indoor_heating_data.csv")
+    
+    # Load Mar29 data
+    csv_fn_mar29 = os.path.join(data_dir, 'indoor_heating_data_mar29.csv')
+    data_mar29 = pd.read_csv(csv_fn_mar29, skiprows=3, encoding='latin1')
+    print(f"Loaded {len(data_mar29)} rows of data from indoor_heating_data_mar29.csv")
 
     # Convert datetime to proper format
     data['Datetime'] = pd.to_datetime(data.iloc[:, 0])
     print(f"First timestamp: {data['Datetime'].iloc[0]}")
     print(f"Last timestamp: {data['Datetime'].iloc[-1]}")
+    
+    # Convert datetime for Mar29 data
+    data_mar29['Datetime'] = pd.to_datetime(data_mar29.iloc[:, 0])
+    print(f"First timestamp Mar29: {data_mar29['Datetime'].iloc[0]}")
+    print(f"Last timestamp Mar29: {data_mar29['Datetime'].iloc[-1]}")
     
     # Define columns based on header information
     temp_columns = data.columns[2:6]  # Temperature columns
@@ -56,57 +68,117 @@ def create_cooling_rate_comparison():
 
     # Define sensor names from the second row of the file
     sensor_names = ["Air near apparatus", "top pane topside", "black bottom", "apparatus bottom"]
+    
+    # Define the index of the apparatus bottom sensor column for alignment
+    apparatus_bottom_col = temp_columns[3]
 
     # Define time periods to extract (as specified in the requirements)
     time_periods = {
         'NOPANE': {
-            'start': '2025-03-28 17:02:57',
+            'start': '2025-03-28 17:02:54',
             'end': '2025-03-28 17:34:16',
+            'data': data
         },
         'CAF2': {
             'start': '2025-03-28 18:27:27',
             'end': '2025-03-28 19:29:00',
+            'data': data
         },
         'BORO': {
-            'start': '2025-03-28 20:05:20',
+            'start': '2025-03-28 20:05:19',
             'end': '2025-03-28 20:59:34',
+            'data': data
+        },
+        'BOROx4': {
+            'start': '2025-03-29 11:04:02',
+            'end': '2025-03-29 12:25:42',
+            'data': data_mar29
+        },
+        'CAF2x4': {
+            'start': '2025-03-29 13:42:46',
+            'end': '2025-03-29 15:04:00',
+            'data': data_mar29
         }
     }
     start_offset = 120
 
+    # Function to find the first index where temperature exceeds the target
+    def find_target_temp_index(df, temp_col, target_temp):
+        mask = df[temp_col].astype(float) <= target_temp
+        if mask.any():
+            return df.index[mask].min()
+        else:
+            return None
+
     # Filter data for each time period
     from datetime import timedelta
     period_data = {}
+    reference_points = {}
+    
     for period_name, time_range in time_periods.items():
+        # Initial filtering with a padding before the start time
         start_time = pd.to_datetime(time_range['start']) - timedelta(seconds=start_offset)
         end_time = pd.to_datetime(time_range['end'])
         
+        # Get the appropriate dataset
+        source_data = time_range['data']
+        
         # Filter data within the time range
-        mask = (data['Datetime'] >= start_time) & (data['Datetime'] <= end_time)
-        period_df = data[mask].copy()
+        mask = (source_data['Datetime'] >= start_time) & (source_data['Datetime'] <= end_time)
+        period_df = source_data[mask].copy()
         
         if not period_df.empty:
-            # Calculate seconds from start for this period
+            # Calculate seconds from start for this period (with original offset)
             period_df['seconds'] = (period_df['Datetime'] - period_df['Datetime'].iloc[0]).dt.total_seconds()
+            
+            # Apply the start offset just like before
+            period_df['seconds'] = period_df['seconds'] - start_offset
+            
+            # Store the processed dataframe
             period_data[period_name] = period_df
             print(f"Extracted {len(period_df)} rows for {period_name} period")
+            
+            # Now find where apparatus bottom first reaches TARGET_TEMP
+            target_idx = find_target_temp_index(period_df, apparatus_bottom_col, TARGET_TEMP)
+            
+            if target_idx is not None:
+                # Get the timestamp from seconds when the target temp is reached
+                target_seconds = period_df.loc[target_idx, 'seconds']
+                reference_points[period_name] = target_seconds
+                print(f"Found reference point for {period_name} at {target_seconds} seconds from start (temp: {period_df.loc[target_idx, apparatus_bottom_col]}°C)")
+            else:
+                print(f"Warning: Could not find temperature {TARGET_TEMP}°C in {period_name} period!")
+                reference_points[period_name] = None
         else:
             print(f"No data found for {period_name} period!")
-    
-    # Align all periods to start offset point
-    # Find reference points and adjust time values
-    for period_name, df in period_data.items():
-        df['seconds'] = df['seconds'] - start_offset
 
-        # Update the DataFrame in the dictionary
-        period_data[period_name] = df
+    # Second alignment - now align to the target temperature point
+    # Find common reference point to align all series
+    if all(time_point is not None for time_point in reference_points.values()):
+        # Find the common alignment point by averaging all reference points
+        avg_reference_time = sum(reference_points.values()) / len(reference_points)
+        print(f"Average time to reach {TARGET_TEMP}°C: {avg_reference_time:.2f} seconds")
+
+        # Adjust all time series so that the target temperature point is at t=0
+        for period_name, df in period_data.items():
+            ref_time = reference_points[period_name]
+            time_shift = ref_time - 0  # Shift so that ref_time becomes 0
+
+            # Apply the shift
+            df['seconds'] = df['seconds'] - time_shift
+            print(f"Shifted {period_name} by {time_shift:.2f} seconds to align to target temperature")
+
+            # Update the DataFrame in the dictionary
+            period_data[period_name] = df
+    else:
+        print("Warning: Some periods don't reach the target temperature. Skipping additional alignment.")
 
     # Define color base for each temperature column
     base_colors = {
         temp_columns[0]: '#00FFFF',  # Air near apparatus - Cyan
         temp_columns[1]: '#00FF00',  # Top pane topside - Green
         temp_columns[2]: '#FF0000',  # Black bottom - Red
-        temp_columns[3]: '#000000',  # Apparatus bottom - Black
+        temp_columns[3]: '#808080',  # Apparatus bottom - Gray (for NOPANE, CAF2, BORO)
     }
     
     # Define line styles for each period
@@ -114,19 +186,38 @@ def create_cooling_rate_comparison():
         'NOPANE': ':',    # Dotted
         'CAF2': '--',     # Dashed
         'BORO': '-',      # Solid
+        'BOROx4': '-',    # Solid (like BORO)
+        'CAF2x4': '--',   # Dashed (like CAF2)
     }
     
     # Define darkness levels for each period
     darkness_levels = {
-        'NOPANE': 0.5,   # Lighter
-        'CAF2': 0.75,    # Medium
-        'BORO': 1.0,     # Darker
+        'NOPANE': 0.5,    # Lighter
+        'CAF2': 0.75,     # Medium
+        'BORO': 1.0,      # Darker
+        'BOROx4': 1.25,   # Darker than BORO
+        'CAF2x4': 1.25,   # Darker than CAF2
     }
     
-    # No longer adjusting color shades - using the same shade for all periods
-    def adjust_color(base_color, darkness):
-        # Return the original color regardless of darkness level
-        return base_color
+    # Adjust color darkness for the new data series
+    def adjust_color(base_color, darkness, sensor_col, period_name):
+        # Special handling for apparatus bottom (temp_columns[3])
+        if sensor_col == temp_columns[3]:
+            if period_name in ['BOROx4', 'CAF2x4']:
+                return '#000000'  # Black for x4 variants
+            else:
+                return '#808080'  # Gray for original variants
+        
+        # For other sensors
+        if darkness > 1.0:
+            # For darker colors (BOROx4 and CAF2x4)
+            rgb = [int(base_color[i:i+2], 16) for i in range(1, 7, 2)]
+            # Make color darker by multiplying by 0.7 (70% brightness)
+            rgb = [max(0, int(c * 0.7)) for c in rgb]
+            return f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
+        else:
+            # For original colors
+            return base_color
     
     # Time range to display (from -1 minute to +60 minutes relative to reference point)
     min_seconds = -60  # 1 minute before reference point
@@ -144,27 +235,35 @@ def create_cooling_rate_comparison():
         # Set subplot title to sensor name
         ax.set_title(sensor_names[j], fontsize=16, weight='bold')
         
-        # Loop through each time period and plot on this subplot
-        for i, (period_name, df) in enumerate(period_data.items()):
-            # Filter data to the time range we want to display
-            df_filtered = df[(df['seconds'] >= min_seconds) & (df['seconds'] <= max_seconds)]
-            
-            # Get color for this sensor
-            color = base_colors[col]
-            
-            # Create label with prefix based on period
-            label = f"{period_name}"
-            
-            # Plot the line
-            ax.plot(
-                df_filtered['seconds'], 
-                df_filtered[col].astype(float),
-                label=label,
-                color=color,
-                linestyle=period_line_styles[period_name],  # Line style based on period
-                linewidth=2.5,
-                zorder=10 + i
-            )
+        # Define the order for plotting periods
+        ordered_periods = ['NOPANE', 'CAF2', 'CAF2x4', 'BORO', 'BOROx4']
+        
+        # Loop through each time period in the specified order
+        for i, period_name in enumerate(ordered_periods):
+            # Get the dataframe for this period
+            if period_name in period_data:
+                df = period_data[period_name]
+                
+                # Filter data to the time range we want to display
+                df_filtered = df[(df['seconds'] >= min_seconds) & (df['seconds'] <= max_seconds)]
+                
+                # Get color for this sensor and adjust based on darkness level
+                base_color = base_colors[col]
+                color = adjust_color(base_color, darkness_levels[period_name], col, period_name)
+                
+                # Create label with prefix based on period
+                label = f"{period_name}"
+                
+                # Plot the line
+                ax.plot(
+                    df_filtered['seconds'], 
+                    df_filtered[col].astype(float),
+                    label=label,
+                    color=color,
+                    linestyle=period_line_styles[period_name],  # Line style based on period
+                    linewidth=2.5,
+                    zorder=10 + i
+                )
         
         # Add grid to each subplot
         ax.grid(True, which='major', linestyle='-', alpha=0.3, linewidth=0.8)
@@ -188,7 +287,7 @@ def create_cooling_rate_comparison():
         
         # Only add x-label to bottom row subplots
         if j >= 2:
-            ax.set_xlabel('Time relative to room temp sensor starting to drop (MM:SS)', fontsize=16, labelpad=10)
+            ax.set_xlabel(f'Time relative to apparatus bottom reaching {TARGET_TEMP}°C (MM:SS)', fontsize=16, labelpad=10)
         
         # Only add y-label to leftmost subplots
         if j % 2 == 0:
@@ -283,7 +382,7 @@ def create_shorter_version(original_fig, mins, xmin=23):
         
         # Add x-label to bottom row subplots
         if i >= 2:
-            ax_new.set_xlabel('Time relative to room temp sensor starting to drop (MM:SS)', fontsize=16, labelpad=10)
+            ax_new.set_xlabel(f'Time relative to apparatus bottom reaching {TARGET_TEMP}°C (MM:SS)', fontsize=16, labelpad=10)
         
         # Add y-label to leftmost subplots
         if i % 2 == 0:
@@ -347,4 +446,4 @@ if __name__ == "__main__":
     print(f"Done! 10-minute version saved as {save_path_10m}")
     save_path_2m = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figure_indoorheating_2m.png')
     fig_2m.savefig(save_path_2m, dpi=600, bbox_inches='tight')
-    print(f"Done! 10-minute version saved as {save_path_10m}")
+    print(f"Done! 2-minute version saved as {save_path_2m}")
