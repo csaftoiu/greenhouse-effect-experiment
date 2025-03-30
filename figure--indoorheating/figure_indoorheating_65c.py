@@ -44,11 +44,21 @@ def create_cooling_rate_comparison():
     csv_fn = os.path.join(data_dir, 'indoor_heating_data_mar29_run65.csv')
     data = pd.read_csv(csv_fn, skiprows=3, encoding='latin1')
     print(f"Loaded {len(data)} rows of data from indoor_heating_data_mar29_run65.csv")
+    
+    # Load Mar29 run65 v2 data
+    csv_fn_v2 = os.path.join(data_dir, 'indoor_heating_data_mar29_run65_v2.csv')
+    data_v2 = pd.read_csv(csv_fn_v2, skiprows=3, encoding='latin1')
+    print(f"Loaded {len(data_v2)} rows of data from indoor_heating_data_mar29_run65_v2.csv")
 
     # Convert datetime to proper format
     data['Datetime'] = pd.to_datetime(data.iloc[:, 0])
     print(f"First timestamp: {data['Datetime'].iloc[0]}")
     print(f"Last timestamp: {data['Datetime'].iloc[-1]}")
+    
+    # Convert datetime for v2 data
+    data_v2['Datetime'] = pd.to_datetime(data_v2.iloc[:, 0])
+    print(f"First timestamp v2: {data_v2['Datetime'].iloc[0]}")
+    print(f"Last timestamp v2: {data_v2['Datetime'].iloc[-1]}")
     
     # Define columns based on header information
     temp_columns = data.columns[2:6]  # Temperature columns
@@ -60,9 +70,9 @@ def create_cooling_rate_comparison():
     # Define time periods to extract with the specified time ranges
     time_periods = {
         'CAF2x4': {
-            'start': '2025-03-29 16:39:59',
-            'end': '2025-03-29 17:44:37',
-            'data': data
+            'start': '2025-03-29 21:03:41',
+            'end': '2025-03-29 21:32:00',
+            'data': data_v2
         },
         'BOROx4': {
             'start': '2025-03-29 18:44:03',
