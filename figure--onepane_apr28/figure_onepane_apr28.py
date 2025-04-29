@@ -120,6 +120,18 @@ def create_publication_quality_plot():
             linestyle='-',       # Solid line as requested
             zorder=5)
 
+    # Add shaded region for "fiddling"
+    fiddling_start = datetime(2025, 4, 28, 16, 16)
+    fiddling_end = datetime(2025, 4, 28, 16, 20)
+    ax1.axvspan(fiddling_start, fiddling_end, color='lightgray', alpha=0.3, zorder=3)
+    
+    # Add "fiddling" label in the middle of the region
+    fiddling_mid = fiddling_start + (fiddling_end - fiddling_start) / 2
+    ax1.text(fiddling_mid, 67.5, 'fiddling',
+            horizontalalignment='center', verticalalignment='center', 
+            fontsize=11, fontweight='bold', color='#555555',
+            bbox=dict(facecolor='white', alpha=0.7, edgecolor=None, boxstyle='round,pad=0.2'))
+    
     # Add vertical lines to top subplot
     dotted_times = [
         datetime(2025, 4, 28, 16, 20),
@@ -141,7 +153,7 @@ def create_publication_quality_plot():
     # Add the requested vertical lines with labels for top subplot
     config_changes = [
         (datetime(2025, 4, 28, 16, 8), "A-Empty\nB-Empty", ax1),
-        (datetime(2025, 4, 28, 16, 37), "A-Boro\nB-CaF2", ax1)
+        (datetime(2025, 4, 28, 16, 39), "A-Boro\nB-CaF2", ax1)
     ]
     
     for t, label, ax in config_changes:
