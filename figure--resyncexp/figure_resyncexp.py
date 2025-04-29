@@ -75,21 +75,27 @@ def create_publication_quality_plot():
     fig = plt.figure(figsize=(12, 7.5))
     ax = fig.add_axes([0.12, 0.15, 0.82, 0.75])
 
-    # Improved label names and styling
-    labels = ['Outside Air', 'Outside Air (15-min avg)', 'Bottom of Pane', 'Black Bottom', 'Apparatus Bottom']
-    colors = ['#1f77b4', '#0a4c8c', '#2ca02c', '#d62728', '#9467bd']  # Professional color palette with darker blue for avg
-    linewidths = [2, 2.5, 2, 3.5, 2]  # Make black bottom extra bold and avg slightly thicker
-    linestyles = ['-', '-', '-', '-', '-']
+    # Define colors and styling
+    outside_air_color = '#1f77b4'     # Light blue for outside air
+    outside_air_avg_color = '#0a4c8c'  # Darker blue for outside air avg
+    bottom_pane_color = '#2ca02c'     # Green for bottom pane
+    black_bottom_color = '#d62728'    # Red for black bottom
+    apparatus_color = '#9467bd'       # Purple for apparatus
     
-    # Plot data with improved styling - Plot Black Bottom first so it appears first in the legend
-    bb_index = 3  # Updated index for Black Bottom (was 2)
-    outside_air_index = 0
+    # From the CSV headers, column indices are:
+    # 0: outside air
+    # 1: bottom of pane
+    # 2: inside black bottom
+    # 3: apparatus bottom
+    outside_air_idx = 0
+    bottom_pane_idx = 1
+    black_bottom_idx = 2
+    apparatus_bottom_idx = 3
     
     # Create 15-minute weighted moving average of outside air temperature
-    # First convert to seconds between measurements
-    outside_air_temps = data[temp_columns[outside_air_index]].astype(float).values
+    outside_air_temps = data[temp_columns[outside_air_idx]].astype(float).values
     
-    # Calculate sampling frequency (samples per second) based on first 100 data points
+    # Calculate sampling frequency based on first 100 data points
     time_diffs = []
     for i in range(1, min(100, len(data))):
         time_diff = (data['Datetime'].iloc[i] - data['Datetime'].iloc[i-1]).total_seconds()
@@ -100,40 +106,41 @@ def create_publication_quality_plot():
     window_size = int(15 * 60 / avg_time_diff)
     print(f"Using window size of {window_size} for 15-minute moving average (avg sampling: {avg_time_diff:.2f}s)")
     
-    # Create weighted average using uniform filter (simple moving average for now)
+    # Create weighted average using uniform filter
     outside_air_avg = uniform_filter1d(outside_air_temps, size=window_size, mode='nearest')
     
-    # Plot Black Bottom first for consistent legend ordering
-    ax.plot(data['Datetime'], data[temp_columns[bb_index]].astype(float), 
-            label=labels[bb_index], 
-            color=colors[bb_index], 
-            linewidth=linewidths[bb_index],
-            linestyle=linestyles[bb_index],
-            zorder=10)  # Higher zorder to bring to front
+    # Start plotting, one series at a time with explicit colors and styles
+    # 1. Plot Black Bottom with higher zorder to bring to front
+    ax.plot(data['Datetime'], data[temp_columns[black_bottom_idx]].astype(float), 
+            label='Black Bottom', 
+            color=black_bottom_color, 
+            linewidth=3.5,  # Thicker for emphasis
+            zorder=10)
     
-    # Plot Outside Air
+    # 2. Plot Outside Air without a label (will be combined with the avg)
     ax.plot(data['Datetime'], outside_air_temps, 
-           label=labels[outside_air_index], 
-           color=colors[outside_air_index], 
-           linewidth=linewidths[outside_air_index],
-           linestyle=linestyles[outside_air_index])
+            label=None,
+            color=outside_air_color, 
+            linewidth=2)
     
-    # Plot Outside Air 15-min average
+    # 3. Plot Outside Air 15-min average with combined label
     ax.plot(data['Datetime'], outside_air_avg, 
-           label=labels[1],  # Outside Air (15-min avg) 
-           color=colors[1], 
-           linewidth=linewidths[1],
-           linestyle=linestyles[1],
-           zorder=8)  # Higher zorder to make it more visible
+            label='Outside Air (+15 min avg)',
+            color=outside_air_avg_color, 
+            linewidth=2.5,
+            zorder=8)
     
-    # Then plot the rest
-    for i, column in enumerate(temp_columns):
-        if i != bb_index and i != outside_air_index:  # Skip Black Bottom and Outside Air since we already plotted them
-            ax.plot(data['Datetime'], data[column].astype(float), 
-                   label=labels[i+1],  # +1 to account for the avg line 
-                   color=colors[i+1], 
-                   linewidth=linewidths[i+1],
-                   linestyle=linestyles[i+1])
+    # 4. Plot Bottom of Pane
+    ax.plot(data['Datetime'], data[temp_columns[bottom_pane_idx]].astype(float), 
+            label='Bottom of Pane',
+            color=bottom_pane_color, 
+            linewidth=2)
+    
+    # 5. Plot Apparatus Bottom
+    ax.plot(data['Datetime'], data[temp_columns[apparatus_bottom_idx]].astype(float), 
+            label='Apparatus Bottom',
+            color=apparatus_color, 
+            linewidth=2)
 
     # Load adjustment data
     adjusts_fn = os.path.join(data_dir, 'adjusts.csv')
@@ -233,8 +240,8 @@ def create_publication_quality_plot():
     
     # Create legend with much smaller size and compact styling
     legend = ax.legend(loc='lower right', frameon=True, fancybox=True,
-                       shadow=True, borderpad=0.3, labelspacing=0.2,
-                       handlelength=1.2, handletextpad=0.4,
+                       shadow=True, borderpad=0.5, labelspacing=0.4,
+                       handlelength=1.2, handletextpad=1,
                        columnspacing=1, ncol=2)
     legend.get_frame().set_linewidth(0.8)
     
