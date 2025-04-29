@@ -107,17 +107,17 @@ def create_publication_quality_plot():
     # 3. Plot B pane bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[2]].astype(float), 
             label='B Pane Bottom',
-            color='#2ca02c',     # Green
+            color='#006400',     # Dark green
             linewidth=2.5,
-            linestyle='--',      # Dashed line for B
+            linestyle='-',       # Solid line as requested
             zorder=6)
     
     # 4. Plot B inside bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[3]].astype(float), 
             label='B Inside Bottom',
-            color='#d62728',     # Red
+            color='#8B0000',     # Dark red
             linewidth=2.5,
-            linestyle='--',      # Dashed line for B
+            linestyle='-',       # Solid line as requested
             zorder=5)
 
     # Add vertical lines to top subplot
@@ -137,6 +137,21 @@ def create_publication_quality_plot():
     ax1.text(swap_time, 65, 'swap-pos', rotation=0, fontsize=12, 
              verticalalignment='top', horizontalalignment='left',
              bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
+         
+    # Add the requested vertical lines with labels for top subplot
+    config_changes = [
+        (datetime(2025, 4, 28, 16, 8), "A-Empty\nB-Empty", ax1),
+        (datetime(2025, 4, 28, 16, 37), "A-Boro\nB-CaF2", ax1)
+    ]
+    
+    for t, label, ax in config_changes:
+        # Only add if the time is within the subplot's range
+        if t <= early_end:
+            ax.axvline(t, color='black', linestyle='-', linewidth=2.5, alpha=0.8, zorder=9)
+            y_pos = 67.5  # Position at 67.5C
+            ax.text(t, y_pos, label, rotation=0, fontsize=10, 
+                  verticalalignment='center', horizontalalignment='left', fontweight='bold',
+                  bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
     
     # Create the bottom subplot (night data)
     # 1. Plot A pane bottom
@@ -158,18 +173,35 @@ def create_publication_quality_plot():
     # 3. Plot B pane bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[2]].astype(float), 
             label='B Pane Bottom',
-            color='#2ca02c',     # Green
+            color='#006400',     # Dark green
             linewidth=2.5,
-            linestyle='--',      # Dashed line for B
+            linestyle='-',       # Solid line as requested
             zorder=6)
     
     # 4. Plot B inside bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[3]].astype(float), 
             label='B Inside Bottom',
-            color='#d62728',     # Red
+            color='#8B0000',     # Dark red
             linewidth=2.5,
-            linestyle='--',      # Dashed line for B
+            linestyle='-',       # Solid line as requested
             zorder=5)
+            
+    # Add the vertical lines with labels for bottom subplot (night)
+    night_config_changes = [
+        (datetime(2025, 4, 28, 21, 0), "A-Boro\nB-CaF2"),
+        (datetime(2025, 4, 28, 21, 31), "A-CaF2\nB-Boro"),
+        (datetime(2025, 4, 29, 0, 9), "A-Empty\nB-Empty"),
+        (datetime(2025, 4, 29, 1, 10), "A-Boro\nB-CaF2")
+    ]
+    
+    for t, label in night_config_changes:
+        # Check if time is within the subplot's range
+        if night_start <= t <= night_end:
+            ax2.axvline(t, color='black', linestyle='-', linewidth=2.5, alpha=0.8, zorder=9)
+            y_pos = 15.5  # Position at 15.5C
+            ax2.text(t, y_pos, label, rotation=0, fontsize=10, 
+                   verticalalignment='center', horizontalalignment='left', fontweight='bold',
+                   bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
 
     # Set y-axis limits as specified
     ax1.set_ylim(40, 70)
