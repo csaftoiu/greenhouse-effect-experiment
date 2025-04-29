@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import os
 from scipy.ndimage import uniform_filter1d
+from scipy import interpolate
 
 
 def create_publication_quality_plot():
@@ -247,8 +248,8 @@ def create_publication_quality_plot():
                    bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
 
     # Set y-axis limits as specified
-    ax1.set_ylim(40, 70)
-    ax2.set_ylim(12, 16)
+    ax1.set_ylim(35, 70)  # Updated to accommodate lower apparatus bottom readings
+    ax2.set_ylim(12, 16.5)  # Updated to accommodate higher apparatus bottom readings
     
     # Set titles for each subplot
     ax1.set_title('One-Pane Experiment, 2025 Apr 28 (Early Afternoon)', fontsize=16, weight='bold', pad=10)
@@ -267,6 +268,105 @@ def create_publication_quality_plot():
     ax1.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
     ax2.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
     
+    # Add manual apparatus bottom readings
+    # Define times in 24-hour format, PM times converted accordingly
+    manual_times = [
+        datetime(2025, 4, 28, 16, 11), datetime(2025, 4, 28, 16, 16), 
+        datetime(2025, 4, 28, 16, 21), datetime(2025, 4, 28, 16, 27),
+        datetime(2025, 4, 28, 16, 34), datetime(2025, 4, 28, 16, 40),
+        datetime(2025, 4, 28, 16, 50), datetime(2025, 4, 28, 19, 37),
+        datetime(2025, 4, 28, 20, 33), datetime(2025, 4, 28, 21, 27),
+        datetime(2025, 4, 28, 21, 31), datetime(2025, 4, 28, 23, 38),
+        datetime(2025, 4, 29, 0, 6),   datetime(2025, 4, 29, 1, 9),
+        datetime(2025, 4, 29, 1, 10),  datetime(2025, 4, 29, 2, 4),
+        datetime(2025, 4, 29, 10, 6)
+    ]
+
+    # A apparatus bottom temps
+    a_apparatus_temps = [
+        36.1, 48.3, 42.9, 45.8, 47.8, 48.7, 52.7, 20.2, 
+        16.5, 15.3, 15.5, 15.5, 15.2, 15.1, 15.1, 15.1, 23.3
+    ]
+
+    # B apparatus bottom temps
+    b_apparatus_temps = [
+        34.7, 49.6, 49.1, 49.2, 51.7, 52.9, 53.5, 20.1,
+        16.4, 15.0, 15.3, 15.8, 15.6, 15.0, 15.6, 15.5, 22.0
+    ]
+
+    # Create a DataFrame with the manual readings
+    apparatus_df = pd.DataFrame({
+        'Datetime': manual_times,
+        'A Apparatus Bottom': a_apparatus_temps,
+        'B Apparatus Bottom': b_apparatus_temps
+    })
+
+    # Create a time series with regular intervals only within manual_times boundaries
+    min_time = min(manual_times)
+    max_time = max(manual_times)
+    interp_times = pd.date_range(start=min_time, end=max_time, freq='1min')
+
+    # Create a DataFrame with these times
+    interp_df = pd.DataFrame({'Datetime': interp_times})
+
+    # Merge with apparatus readings
+    interp_df = interp_df.merge(apparatus_df, on='Datetime', how='left')
+
+    # Interpolate missing values using pandas interpolation
+    interp_df = interp_df.set_index('Datetime')
+    interp_df = interp_df.interpolate(method='linear')
+    interp_df = interp_df.reset_index()
+    
+    # Filter data for each subplot
+    interp_early = interp_df[interp_df['Datetime'] <= early_end].copy()
+    interp_night = interp_df[(interp_df['Datetime'] >= night_start) & 
+                             (interp_df['Datetime'] <= night_end)].copy()
+    
+    # Plot on top subplot (early afternoon)
+    ax1.plot(interp_early['Datetime'], interp_early['A Apparatus Bottom'], 
+            label='A Apparatus Bottom', 
+            color='#90EE90',     # Light green
+            linewidth=2.0,
+            linestyle=':', 
+            zorder=4)
+
+    ax1.plot(interp_early['Datetime'], interp_early['B Apparatus Bottom'], 
+            label='B Apparatus Bottom',
+            color='#006400',     # Dark green 
+            linewidth=2.0,
+            linestyle=':', 
+            zorder=3)
+            
+    # Add X markers at manual data points for early subplot
+    early_manual_df = apparatus_df[apparatus_df['Datetime'] <= early_end]
+    ax1.scatter(early_manual_df['Datetime'], early_manual_df['A Apparatus Bottom'],
+               color='#90EE90', marker='X', s=80, zorder=9)
+    ax1.scatter(early_manual_df['Datetime'], early_manual_df['B Apparatus Bottom'],
+               color='#006400', marker='X', s=80, zorder=9)
+
+    # Plot on bottom subplot (night)
+    ax2.plot(interp_night['Datetime'], interp_night['A Apparatus Bottom'], 
+            label='A Apparatus Bottom', 
+            color='#90EE90',     # Light green
+            linewidth=2.0,
+            linestyle=':', 
+            zorder=4)
+
+    ax2.plot(interp_night['Datetime'], interp_night['B Apparatus Bottom'], 
+            label='B Apparatus Bottom',
+            color='#006400',     # Dark green 
+            linewidth=2.0,
+            linestyle=':', 
+            zorder=3)
+            
+    # Add X markers at manual data points for night subplot
+    night_manual_df = apparatus_df[(apparatus_df['Datetime'] >= night_start) & 
+                                  (apparatus_df['Datetime'] <= night_end)]
+    ax2.scatter(night_manual_df['Datetime'], night_manual_df['A Apparatus Bottom'],
+               color='#90EE90', marker='X', s=80, zorder=9)
+    ax2.scatter(night_manual_df['Datetime'], night_manual_df['B Apparatus Bottom'],
+               color='#006400', marker='X', s=80, zorder=9)
+
     # Add legend to bottom-right of the top graph
     handles, labels = ax1.get_legend_handles_labels()
     legend = ax1.legend(handles, labels, loc='lower right',
