@@ -123,13 +123,13 @@ def create_publication_quality_plot():
     # Add shaded region for "fiddling"
     fiddling_start = datetime(2025, 4, 28, 16, 16)
     fiddling_end = datetime(2025, 4, 28, 16, 20)
-    ax1.axvspan(fiddling_start, fiddling_end, color='lightgray', alpha=0.3, zorder=3)
+    ax1.axvspan(fiddling_start, fiddling_end, color='gray', alpha=0.3, zorder=-53)
     
     # Add "fiddling" label in the middle of the region
     fiddling_mid = fiddling_start + (fiddling_end - fiddling_start) / 2
     ax1.text(fiddling_mid, 67.5, 'fiddling',
             horizontalalignment='center', verticalalignment='center', 
-            fontsize=11, fontweight='bold', color='#555555',
+            fontsize=9, fontweight='bold', color='#555555',
             bbox=dict(facecolor='white', alpha=0.7, edgecolor=None, boxstyle='round,pad=0.2'))
     
     # Add vertical lines to top subplot
@@ -146,8 +146,10 @@ def create_publication_quality_plot():
     # Add vertical dashed line with horizontal label
     swap_time = datetime(2025, 4, 28, 16, 28)
     ax1.axvline(swap_time, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
-    ax1.text(swap_time, 65, 'swap-pos', rotation=0, fontsize=12, 
-             verticalalignment='top', horizontalalignment='left',
+    # Add small horizontal offset to prevent overlap with line
+    label_offset = timedelta(seconds=14)
+    ax1.text(swap_time + label_offset, 67.5, 'swap\npositions', rotation=0, fontsize=12,
+             verticalalignment='center', horizontalalignment='left',
              bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
          
     # Add the requested vertical lines with labels for top subplot
@@ -159,11 +161,25 @@ def create_publication_quality_plot():
     for t, label, ax in config_changes:
         # Only add if the time is within the subplot's range
         if t <= early_end:
+            # Add the vertical line
             ax.axvline(t, color='black', linestyle='-', linewidth=2.5, alpha=0.8, zorder=9)
-            y_pos = 67.5  # Position at 67.5C
-            ax.text(t, y_pos, label, rotation=0, fontsize=10, 
-                  verticalalignment='center', horizontalalignment='left', fontweight='bold',
-                  bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
+            
+            # Split the label into A and B parts
+            a_line, b_line = label.split('\n')
+            
+            # Add A-line in red (slightly higher position)
+            ax.text(t + label_offset, 68.0, a_line, color='#d62728',  # Red for A
+                   rotation=0, fontsize=10, 
+                   verticalalignment='center', horizontalalignment='left', 
+                   fontweight='bold',
+                   bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
+            
+            # Add B-line in dark red (slightly lower position)
+            ax.text(t + label_offset, 67.0, b_line, color='#8B0000',  # Dark red for B
+                   rotation=0, fontsize=10, 
+                   verticalalignment='center', horizontalalignment='left', 
+                   fontweight='bold',
+                   bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
     
     # Create the bottom subplot (night data)
     # 1. Plot A pane bottom
@@ -209,10 +225,25 @@ def create_publication_quality_plot():
     for t, label in night_config_changes:
         # Check if time is within the subplot's range
         if night_start <= t <= night_end:
+            # Add the vertical line
             ax2.axvline(t, color='black', linestyle='-', linewidth=2.5, alpha=0.8, zorder=9)
-            y_pos = 15.5  # Position at 15.5C
-            ax2.text(t, y_pos, label, rotation=0, fontsize=10, 
-                   verticalalignment='center', horizontalalignment='left', fontweight='bold',
+            
+            # Split the label into A and B parts
+            a_line, b_line = label.split('\n')
+            
+            # Add A-line in red (slightly higher position)
+            label_offset = timedelta(seconds=60)
+            ax2.text(t + label_offset, 15.8, a_line, color='#d62728',  # Red for A
+                   rotation=0, fontsize=10, 
+                   verticalalignment='center', horizontalalignment='left', 
+                   fontweight='bold',
+                   bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
+            
+            # Add B-line in dark red (slightly lower position)
+            ax2.text(t + label_offset, 15.65, b_line, color='#8B0000',  # Dark red for B
+                   rotation=0, fontsize=10, 
+                   verticalalignment='center', horizontalalignment='left', 
+                   fontweight='bold',
                    bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
 
     # Set y-axis limits as specified
@@ -236,12 +267,12 @@ def create_publication_quality_plot():
     ax1.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
     ax2.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
     
-    # Add single legend at the top of the figure
+    # Add legend to bottom-right of the top graph
     handles, labels = ax1.get_legend_handles_labels()
-    legend = fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.98),
-                     ncol=4, frameon=True, fancybox=True, shadow=True, 
-                     borderpad=0.5, labelspacing=0.4, handlelength=1.2, 
-                     handletextpad=1, columnspacing=1)
+    legend = ax1.legend(handles, labels, loc='lower right',
+                      frameon=True, fancybox=True, shadow=True, 
+                      borderpad=0.5, labelspacing=0.4, handlelength=1.2, 
+                      handletextpad=1, columnspacing=1, ncol=2)
     legend.get_frame().set_linewidth(0.8)
     
     # Adjust layout
