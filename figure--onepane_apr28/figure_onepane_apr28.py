@@ -82,38 +82,42 @@ def create_publication_quality_plot():
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12), sharex=False)
 
     # Define colors and styling - updated colors per request
-    a_pane_color = '#a55194'     # Light purple for A pane bottom
-    a_inside_color = '#ff7f7f'   # Light red for A inside bottom
-    b_pane_color = '#6a0dad'     # Dark purple for B pane bottom
-    b_inside_color = '#b22222'   # Dark red for B inside bottom
+    a_pane_color = '#90EE90'     # Green for A pane bottom
+    a_inside_color = '#006400'   # Dark green for A inside bottom
+    b_pane_color = '#FF0000'     # Red for B pane bottom
+    b_inside_color = '#8B0000'   # Dark red for B inside bottom
     
     # Create the top subplot (early afternoon data)
     # 1. Plot A pane bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[0]].astype(float), 
             label='A Pane Bottom', 
-            color=a_pane_color, 
+            color='#2ca02c',     # Green  
             linewidth=2.5,
+            linestyle='-',       # Solid line for A
             zorder=8)
     
     # 2. Plot A inside bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[1]].astype(float), 
             label='A Inside Bottom',
-            color=a_inside_color, 
+            color='#d62728',     # Red
             linewidth=2.5,
+            linestyle='-',       # Solid line for A
             zorder=7)
     
     # 3. Plot B pane bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[2]].astype(float), 
             label='B Pane Bottom',
-            color=b_pane_color, 
+            color='#2ca02c',     # Green
             linewidth=2.5,
+            linestyle='--',      # Dashed line for B
             zorder=6)
     
     # 4. Plot B inside bottom
     ax1.plot(data_early['Datetime'], data_early[temp_columns[3]].astype(float), 
             label='B Inside Bottom',
-            color=b_inside_color, 
+            color='#d62728',     # Red
             linewidth=2.5,
+            linestyle='--',      # Dashed line for B
             zorder=5)
 
     # Add vertical lines to top subplot
@@ -131,36 +135,40 @@ def create_publication_quality_plot():
     swap_time = datetime(2025, 4, 28, 16, 28)
     ax1.axvline(swap_time, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
     ax1.text(swap_time, 65, 'swap-pos', rotation=0, fontsize=12, 
-             verticalalignment='top', horizontalalignment='center',
+             verticalalignment='top', horizontalalignment='left',
              bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
     
     # Create the bottom subplot (night data)
     # 1. Plot A pane bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[0]].astype(float), 
             label='A Pane Bottom', 
-            color=a_pane_color, 
+            color='#2ca02c',     # Green  
             linewidth=2.5,
+            linestyle='-',       # Solid line for A
             zorder=8)
     
     # 2. Plot A inside bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[1]].astype(float), 
             label='A Inside Bottom',
-            color=a_inside_color, 
+            color='#d62728',     # Red
             linewidth=2.5,
+            linestyle='-',       # Solid line for A
             zorder=7)
     
     # 3. Plot B pane bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[2]].astype(float), 
             label='B Pane Bottom',
-            color=b_pane_color, 
+            color='#2ca02c',     # Green
             linewidth=2.5,
+            linestyle='--',      # Dashed line for B
             zorder=6)
     
     # 4. Plot B inside bottom
     ax2.plot(data_night['Datetime'], data_night[temp_columns[3]].astype(float), 
             label='B Inside Bottom',
-            color=b_inside_color, 
+            color='#d62728',     # Red
             linewidth=2.5,
+            linestyle='--',      # Dashed line for B
             zorder=5)
 
     # Set y-axis limits as specified
