@@ -11,7 +11,7 @@ from scipy.ndimage import uniform_filter1d
 def create_publication_quality_plot():
     """
     Creates a publication-quality plot of the one-pane April 28 experiment temperature data
-    with professionally styled elements.
+    with professionally styled elements, split into two subplots - early afternoon and night.
     """
     # Set publication-quality style parameters
     plt.rcParams.update({
@@ -66,78 +66,135 @@ def create_publication_quality_plot():
     temp_columns = data.columns[2:6]  # Getting the 4 temperature columns
     print(f"Temperature columns: {temp_columns.tolist()}")
 
-    # Create the high-quality figure with manual positioning
-    fig = plt.figure(figsize=(12, 7.5))
-    ax = fig.add_axes([0.12, 0.15, 0.82, 0.75])
-
-    # Define colors and styling
-    a_pane_color = '#1f77b4'     # Blue for A pane bottom
-    a_inside_color = '#2ca02c'    # Green for A inside bottom
-    b_pane_color = '#d62728'     # Red for B pane bottom
-    b_inside_color = '#9467bd'    # Purple for B inside bottom
+    # Define time ranges for each subplot
+    early_end = datetime(2025, 4, 28, 17, 15)
+    night_start = datetime(2025, 4, 28, 21, 0)
+    night_end = datetime(2025, 4, 29, 2, 0)
     
-    # Start plotting, one series at a time with explicit colors and styles
+    # Filter data for each subplot
+    data_early = data[(data['Datetime'] <= early_end)].copy()
+    data_night = data[(data['Datetime'] >= night_start) & (data['Datetime'] <= night_end)].copy()
+    
+    print(f"Data early phase: {len(data_early)} rows")
+    print(f"Data night phase: {len(data_night)} rows")
+
+    # Create figure with two subplots stacked vertically with equal heights
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12), sharex=False)
+
+    # Define colors and styling - updated colors per request
+    a_pane_color = '#a55194'     # Light purple for A pane bottom
+    a_inside_color = '#ff7f7f'   # Light red for A inside bottom
+    b_pane_color = '#6a0dad'     # Dark purple for B pane bottom
+    b_inside_color = '#b22222'   # Dark red for B inside bottom
+    
+    # Create the top subplot (early afternoon data)
     # 1. Plot A pane bottom
-    ax.plot(data['Datetime'], data[temp_columns[0]].astype(float), 
+    ax1.plot(data_early['Datetime'], data_early[temp_columns[0]].astype(float), 
             label='A Pane Bottom', 
             color=a_pane_color, 
             linewidth=2.5,
             zorder=8)
     
     # 2. Plot A inside bottom
-    ax.plot(data['Datetime'], data[temp_columns[1]].astype(float), 
+    ax1.plot(data_early['Datetime'], data_early[temp_columns[1]].astype(float), 
             label='A Inside Bottom',
             color=a_inside_color, 
             linewidth=2.5,
             zorder=7)
     
     # 3. Plot B pane bottom
-    ax.plot(data['Datetime'], data[temp_columns[2]].astype(float), 
+    ax1.plot(data_early['Datetime'], data_early[temp_columns[2]].astype(float), 
             label='B Pane Bottom',
             color=b_pane_color, 
             linewidth=2.5,
             zorder=6)
     
     # 4. Plot B inside bottom
-    ax.plot(data['Datetime'], data[temp_columns[3]].astype(float), 
+    ax1.plot(data_early['Datetime'], data_early[temp_columns[3]].astype(float), 
             label='B Inside Bottom',
             color=b_inside_color, 
             linewidth=2.5,
             zorder=5)
 
-    # Improved plot styling
-    ax.set_title('One-Pane Experiment, 2025 Apr 28', fontsize=18, weight='bold', pad=15)
-    ax.set_xlabel('Time (HH:MM)', fontsize=16, labelpad=10)
-    ax.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)  # Using proper Unicode degree symbol
+    # Add vertical lines to top subplot
+    dotted_times = [
+        datetime(2025, 4, 28, 16, 20),
+        datetime(2025, 4, 28, 16, 21),
+        datetime(2025, 4, 28, 16, 27),
+        datetime(2025, 4, 28, 16, 50)
+    ]
     
-    # Create legend with much smaller size and compact styling
-    legend = ax.legend(loc='lower right', frameon=True, fancybox=True,
-                       shadow=True, borderpad=0.5, labelspacing=0.4,
-                       handlelength=1.2, handletextpad=1,
-                       columnspacing=1, ncol=2)
+    for t in dotted_times:
+        ax1.axvline(t, color='black', linestyle=':', linewidth=1.5, alpha=0.7, zorder=4)
+    
+    # Add vertical dashed line with horizontal label
+    swap_time = datetime(2025, 4, 28, 16, 28)
+    ax1.axvline(swap_time, color='black', linestyle='--', linewidth=1.5, alpha=0.7, zorder=4)
+    ax1.text(swap_time, 65, 'swap-pos', rotation=0, fontsize=12, 
+             verticalalignment='top', horizontalalignment='center',
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor=None, boxstyle='round,pad=0.2'))
+    
+    # Create the bottom subplot (night data)
+    # 1. Plot A pane bottom
+    ax2.plot(data_night['Datetime'], data_night[temp_columns[0]].astype(float), 
+            label='A Pane Bottom', 
+            color=a_pane_color, 
+            linewidth=2.5,
+            zorder=8)
+    
+    # 2. Plot A inside bottom
+    ax2.plot(data_night['Datetime'], data_night[temp_columns[1]].astype(float), 
+            label='A Inside Bottom',
+            color=a_inside_color, 
+            linewidth=2.5,
+            zorder=7)
+    
+    # 3. Plot B pane bottom
+    ax2.plot(data_night['Datetime'], data_night[temp_columns[2]].astype(float), 
+            label='B Pane Bottom',
+            color=b_pane_color, 
+            linewidth=2.5,
+            zorder=6)
+    
+    # 4. Plot B inside bottom
+    ax2.plot(data_night['Datetime'], data_night[temp_columns[3]].astype(float), 
+            label='B Inside Bottom',
+            color=b_inside_color, 
+            linewidth=2.5,
+            zorder=5)
+
+    # Set y-axis limits as specified
+    ax1.set_ylim(40, 70)
+    ax2.set_ylim(12, 16)
+    
+    # Set titles for each subplot
+    ax1.set_title('One-Pane Experiment, 2025 Apr 28 (Early Afternoon)', fontsize=16, weight='bold', pad=10)
+    ax2.set_title('One-Pane Experiment, 2025 Apr 28-29 (Night)', fontsize=16, weight='bold', pad=10)
+    
+    # Format x-axis with enhanced time display for both subplots
+    for ax in [ax1, ax2]:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        ax.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=[15, 30, 45]))
+        ax.grid(True, which='major', linestyle='-', alpha=0.3, linewidth=0.8)
+        ax.grid(True, which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
+    
+    # Add axis labels
+    ax2.set_xlabel('Time (HH:MM)', fontsize=16, labelpad=10)
+    ax1.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
+    ax2.set_ylabel('Temperature (°C)', fontsize=16, labelpad=10)
+    
+    # Add single legend at the top of the figure
+    handles, labels = ax1.get_legend_handles_labels()
+    legend = fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.98),
+                     ncol=4, frameon=True, fancybox=True, shadow=True, 
+                     borderpad=0.5, labelspacing=0.4, handlelength=1.2, 
+                     handletextpad=1, columnspacing=1)
     legend.get_frame().set_linewidth(0.8)
     
-    # Format x-axis with enhanced time display
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-    ax.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=[15, 30, 45]))
-    
-    # Format y-axis with optimal tick spacing and add padding
-    y_min = data[temp_columns].min().min()
-    y_max = data[temp_columns].max().max()
-    ax.set_ylim(y_min - 1, y_max + 5)  # Add padding
-    
-    # Calculate reasonable tick intervals
-    temp_range = y_max - y_min
-    major_interval = 5 if temp_range > 20 else 2
-    minor_interval = major_interval / 5
-    
-    ax.yaxis.set_major_locator(mticker.MultipleLocator(major_interval))
-    ax.yaxis.set_minor_locator(mticker.MultipleLocator(minor_interval))
-    
-    # Add enhanced grid with different levels
-    ax.grid(True, which='major', linestyle='-', alpha=0.3, linewidth=0.8)
-    ax.grid(True, which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
+    # Adjust layout
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92, hspace=0.25)
     
     return fig
 
